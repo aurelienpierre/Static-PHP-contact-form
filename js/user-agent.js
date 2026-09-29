@@ -71,13 +71,19 @@ async function ping(url, multiplier) {
 
 // NOTE: window.RTCPeerConnection is "not a constructor" in FF22/23
 var RTCPeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
-var DNSResolver = browser.dns || chrome.dns;
+// 'browser' only exists inside WebExtensions: referencing it bare threw a
+// ReferenceError in every normal browser, killing this whole script — and with it
+// the local_ip promise and the form (fixed 2026-09-29).
+var DNSResolver = (typeof browser !== 'undefined' && browser.dns) || (typeof chrome !== 'undefined' && chrome.dns) || null;
 var promiseResolve, promiseReject;
 
 var local_ip = new Promise(function(resolve, reject){
   promiseResolve = resolve;
   promiseReject = reject;
 });
+// Modern browsers hide local IPs behind mDNS names: make sure the promise always
+// resolves so the form's required field is never left empty (0.0.0.0 = unknown).
+setTimeout(function(){ promiseResolve('0.0.0.0'); }, 3000);
 
 if (RTCPeerConnection) {
   var rtc = new RTCPeerConnection({ iceServers: [] });

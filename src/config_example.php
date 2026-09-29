@@ -1,4 +1,10 @@
 <?php
+/**
+ * Structure and non-secret settings. Every credential comes from the .env file at
+ * the project root (see .env.example) — never from this file, which is safe to commit.
+ */
+
+require_once(__DIR__ . '/env.php');
 
 return array(
     // PHPMailer front-end debug option. Set to 0 to disable, 1 for debug output, 2 for verbose debug output.
@@ -8,11 +14,11 @@ return array(
 
     // A password-like random string to validate queries between user-agent.php and send.php.
     // Generate one with https://www.avast.com/random-password-generator#pc
-    'user-secret' => 'xxxxxxxxxxxxxxxx',
+    'user-secret' => env('USER_SECRET'),
 
     // Used when calling update-geoip.php to authentify requests and throttle service,
     // Generate one with https://www.avast.com/random-password-generator#pc
-    'admin-secret' => "xxxxxxxxxxxxxxxx",
+    'admin-secret' => env('ADMIN_SECRET'),
 
     // Public IP of localhost, for cases where the API is called from within the same local network.
     // Used for GeoIP testing/debugging purposes, when running a test PHP server locally. Any valid IP will do.
@@ -23,17 +29,14 @@ return array(
     // Lite is the free service.
     // Create a license key : https://support.maxmind.com/hc/en-us/articles/4407111582235-Generate-a-License-Key
     'maxmind' => array(
-        'account' => "123456",                     // Account ID number : 6 digits
-        'password' => "xxxxxxxxxxxxxxxxxxxxxxxxx", // secret key
+        'account'  => env('MAXMIND_ACCOUNT'),
+        'password' => env('MAXMIND_KEY'),
     ),
 
     // Domains authorized to send requests to our APIs
-    'origins' => array(
-        0 => 'localhost',          // strongly recommended - don't change
-        1 => 'your-domain.com',    // required - adapt it
-        2 => 'other-domain.net',   // optional - adapt it or remove
-        // add as many as you need
-    ),
+    // Domains allowed to POST to these endpoints. Comma-separated in .env:
+    //   ORIGINS=localhost,your-domain.com
+    'origins' => array_map('trim', explode(',', env('ORIGINS', 'localhost'))),
 
     // Email server settings
     'mailer' => array(
@@ -42,7 +45,7 @@ return array(
         // 1. if you run the PHP scripts from inside of your email server :
         //'host' => 'localhost',
         // 2. if you run the PHP scripts from outside of your email server (or if you don't know)
-        'host' => 'mail.your-domain.com',
+        'host' => env('SMTP_HOST'),
 
         // The second is more robust (works from inside or outside the email server),
         // but the first may be faster (when applicable) since it doesn't go through DNS resolution.
@@ -52,11 +55,11 @@ return array(
         // The mailbox used to send emails through SMTP.
         // Treat it as a burner account for security purpose (aka no private communications).
         // It will also collect bouncing emails, so it may be a good idea to monitor it.
-        'username' => 'mailer@your-domain.com',
-        'password' => 'xxxxxxxxxxxx',
+        'username' => env('SMTP_USER'),
+        'password' => env('SMTP_PASS'),
 
         // SMTP port - We force usage of STARTTLS, so this should be working.
-        'port' => 587,
+        'port' => (int) env('SMTP_PORT', 587),
     ),
 
     // Emails template settings
@@ -65,10 +68,10 @@ return array(
         // Config for the default template, matching `default.php` from ./templates
         'default' => array(
             // List of people who will get contact form emails, as name => address
-            'receipients' => array(
-                "Head of customer service" => 'contact@you-domain.com',
-                // can add as many receipients as you like
-            ),
+            // Who receives the messages. Comes from MAIL_TO in .env so the address
+            // is never a placeholder left over from this example file; comma-separate
+            // it there for several recipients.
+            'receipients' => array_map('trim', explode(',', env('MAIL_TO', ''))),
 
             // String to prepend to the subject line
             'subject_prepend' => '[CONTACT] ',
@@ -85,8 +88,8 @@ return array(
         // then send a POST request to ./send-email.php?template=custom using an hidden <input name="template" value="custom">
         // tag in your HTML form.
         'custom' => array(
-            // Mandatory fields:
-            'receipients' => array(),
+            // Mandatory fields (a template with no recipient is refused at runtime):
+            'receipients' => array_map('trim', explode(',', env('MAIL_TO', ''))),
             'subject_prepend' => '',
             'lang' => '',
         ),

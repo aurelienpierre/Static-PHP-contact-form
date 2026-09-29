@@ -1,5 +1,8 @@
+# Third-party libraries and the MaxMind GeoIP databases: used by PHP from inside
+# the server, never fetched over HTTP. Serving them would leak a 61 MB licensed
+# database to anyone who guesses the path.
 deny from all
 
-<Files subdirectory/*>
-    deny from all
-</Files>
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>

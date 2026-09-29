@@ -2,6 +2,19 @@
 
 __Static PHP Contact form__ provides a self-contained, stand-alone mini-framework allowing to put HTML contact forms on static websites (generated with CMS like [Hugo](https://gohugo.io/), [Jekyll](https://jekyllrb.com/), [Gatsby](https://www.gatsbyjs.com/), etc.). The front-end part (HTML form) will need to be added in a page on the static website, while the back-end part (PHP scripts and libs) will need to be installed on any old-school [LAMP](https://en.wikipedia.org/wiki/LAMP_(software_bundle)) server you control, and is designed for basic shared hostings where limited admin options are offered (no access to `sudo`, `apt install`, Docker containers, etc.).
 
+> **Deploying this on your own site: see [DEPLOY.md](DEPLOY.md).**
+
+## One back-end
+
+`send-email.php` is the only endpoint: it takes the POST, filters, and sends.
+**All credentials live in a `.env` file** at the project root (see `.env.example`) —
+never in the source tree, never in Git. `src/config.php` keeps only the structure:
+templates, recipients, and which domains may post.
+
+A second, cut-down handler (`send.php`, `.env`-configured but without templates,
+GeoIP or the user-agent checks) existed briefly and was folded back in here on
+2026-09-29: two code paths doing the same job is how one of them silently rots.
+
 ## Features
 
 - User-agent detection (OS, browser, public IP, local/private IP),
@@ -59,7 +72,7 @@ The scope of this project is to provide this end-point, self-hostable on any PHP
 You will need Git installed on your computer. In a terminal, do:
 
 ```bash
-$ git clone --recurse-submodules --shallow-submodules https://github.com/aurelienpierreeng/Static-PHP-contact-form.git
+$ git clone --recurse-submodules --shallow-submodules https://github.com/aurelienpierre/Static-PHP-contact-form.git
 $ cd Static-PHP-contact-form
 ```
 
@@ -128,7 +141,7 @@ This will display the demo contact form within the target page. However, the hei
 
 ### The pretty way: inline HTML
 
-You can copy and paste the content of `./src/demo/contact.html` to your static website generator templates, and then modify it further. All the `<input>` fields found in the demo need to be in the HTML form because they are required by the PHP POST endpoint `./send-email.php`, but you can set most of them to `type=hidden`.
+You can copy and paste the content of `./demo/contact.html` to your static website generator templates, and then modify it further. All the `<input>` fields found in the demo need to be in the HTML form because they are required by the PHP POST endpoint `./send-email.php`, but you can set most of them to `type=hidden`.
 
 If you go this way, don't forget to load the Javascript validation script. Here is a minimal example:
 
@@ -260,7 +273,18 @@ The `utm_source` parameter is read by our `./js/user-agent.js` script and added 
 
 The form fields validation is done by the browser native features (`required` fields and `email` type format).
 
-Our mandatory `./js/user-agent.js` script hits the `./user-agent.php` endpoint, which returns a JSON response used by the script to fill the user-agent related HTML form fields. The local IP address is resolved client-side through WebRTC API.
+Our mandatory `./js/user-agent.js` script hits the `./user-agent.php` endpoint, which returns a JSON response used by the script to fill the user-agent related HTML form fields. The local IP address is resolved client-side through the WebRTC API — and because modern browsers hide it behind mDNS names, the promise resolves to `0.0.0.0` after 3 s so a browser that will not reveal it cannot block the form.
+
+> **The trap.** This whole scheme has one failure mode, and it is silent: if that
+> script throws for any reason, the hidden fields stay empty, the submit button is
+> never enabled, and **no human can send you anything** — while bots posting
+> straight to the endpoint carry on. You conclude that you only ever get spam.
+>
+> It happened here: `var DNSResolver = browser.dns || chrome.dns` threw a
+> `ReferenceError` in every browser outside a WebExtension. Fixed in
+> `./js/user-agent.js`. Two rules follow: never mark a user-agent field
+> `required` in the HTML (let the back-end judge), and open the browser console
+> on your live contact page after every deployment.
 
 Those user-agent fields are sent back in the POST request to the `./send-email.php` endpoint, which will compare them to the internal ones from `./user-agent.php` and refuse the connection if they don't match. This effectively rejects all user-agents not supporting Javascript, which should keep away most spamming bots.
 
@@ -277,6 +301,9 @@ The `<input name="address">` is a honeypot field. It should be in the form but s
     - has no MX entry (no email server advertised),
 - if the `address` POST parameter is not empty (honeypot caught a bot),
 - if any other POST parameter is empty (see `./demo/contact.html` for mandatory fields)
+
+Note that `localip` is deliberately **not** in that list: some browsers legitimately
+refuse to expose it, and refusing them would lock out humans rather than bots.
 
 
 All internal code subdirectories are protected with a `.htaccess` file defining the rules:

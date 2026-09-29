@@ -4,3 +4,6 @@ libs/geoip/*.mmdb
 templates/*.php
 !templates/default.php
 !templates/html.php
+
+.env
+.env.cdn-additions

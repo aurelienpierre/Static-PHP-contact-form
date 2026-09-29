@@ -6,6 +6,14 @@
 $config = include('./src/config.php');
 require_once("./src/utils.php");
 
+// Credentials come from .env: say so plainly instead of failing at SMTP time.
+$missing = env_missing(['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'ORIGINS', 'MAIL_TO']);
+if ($missing) {
+    http_response_code(500);
+    exit('<p>Server configuration is incomplete: ' . implode(', ', $missing)
+         . ' missing from .env. Please report it.</p>');
+}
+
 require 'libs/PHPMailer/src/Exception.php';
 require 'libs/PHPMailer/src/PHPMailer.php';
 require 'libs/PHPMailer/src/SMTP.php';
@@ -86,6 +94,10 @@ if (!isset($config['templates'][$_POST['template']]))
 
 if(!file_exists('./templates/' . $_POST['template'] . '.php'))
     $errors[] = 'Email template does not exist';
+
+// Without this, PHPMailer reports success while the message goes nowhere.
+elseif (empty(array_filter($config['templates'][$_POST['template']]['receipients'] ?? [])))
+    $errors[] = 'Email template has no recipient';
 
 if (!empty($errors))
 {
